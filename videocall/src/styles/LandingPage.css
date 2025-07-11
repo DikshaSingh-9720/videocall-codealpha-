@@ -1,0 +1,295 @@
+/* src/styles/LandingPage.css */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.landing-container {
+  height: 100vh;
+  width: 100vw;
+  background: linear-gradient(135deg, #1aa7ba, #16213e);
+  display: flex;
+  flex-direction: column;
+  color: white;
+  overflow-y: hidden;
+}
+
+/* Navbar */
+/* Navbar */
+.nav {
+  display: flex;
+  position: sticky;
+  top: 0;
+  align-items: center;
+  z-index: 5; /* LOWER than sidebar */
+  height: 5rem;
+  padding: 1rem 2rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.nav i {
+  font-size: 1.3rem;
+  margin-right: 1rem;
+  color: #2b1488;
+  cursor: pointer;
+}
+
+.menu-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #062e30;
+  cursor: pointer;
+  padding: 0.5rem;
+  margin-right: 1rem;
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  left: 16px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  font-weight:900 ;
+  cursor: pointer;
+  color: #062e30;
+}
+
+.icon {
+  margin-right: 0.5rem;
+  font-size: 1.2rem;
+}
+
+.nav h1 {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #eeeeee;
+  position: absolute;
+  right: 3rem;
+  top: 1rem;
+}
+
+/* Sidebar */
+.sidebar {
+  height: 100%;
+  width: 260px;
+  position: fixed;
+  top: 0;
+  left: -260px;
+  z-index: 20; /* Ensure above nav and content */
+  background: rgba(100, 202, 23, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 56px 16px 16px;
+  overflow-x: hidden;
+  opacity: 0;
+  transition: left 0.3s ease-in-out, opacity 0.3s ease-in-out;
+  box-shadow: 5px 0 15px rgba(0, 0, 0, 0.2);
+}
+
+
+.sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -30px;
+  height: 100%;
+  width: 100px;
+  background-color: inherit;
+  border-radius: 50%;
+  z-index: -1;
+}
+
+.sidebar.show {
+  border-radius: 0 50px 50px 0;
+  left: 0;
+  opacity: 1;
+}
+
+.sidebar a {
+  padding: 6px 8px 6px 16px;
+  text-decoration: none;
+  font-size: 20px;
+  color: #eeeeee;
+  display: flex;
+  align-items: center;
+  justify-content: start;
+  transition: color 0.2s ease;
+}
+
+.sidebar a:hover {
+  color: #07393c;
+}
+
+.sidebar i.fa-xmark {
+  position: absolute;
+  top: 10px;
+  left: 16px;
+  font-size: 24px;
+  cursor: pointer;
+  color: #00adb5;
+}
+
+.sidebar.show i {
+  font-size: 1.3rem;
+  margin-right: 1rem;
+  color: #2b1488;
+}
+
+
+/* Centered Landing Content */
+.landing-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  z-index: 1;
+  padding: 2rem;
+}
+
+.landing-content p {
+  font-size: 1.3rem;
+  color: #ccc;
+  margin-bottom: 2rem;
+  max-width: 600px;
+}
+
+.landing-content button {
+  padding: 12px 30px;
+  font-size: 1.1rem;
+  color: white;
+  background-color: #00adb5;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.landing-content button:hover {
+  background-color: #009ba4;
+}
+
+.hero {
+  text-align: center;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero img {
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  border-radius: 20px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  margin-bottom: 2rem;
+  transition: transform 0.3s ease;
+}
+
+.hero img:hover {
+  transform: scale(1.02);
+}
+
+
+.hero h2 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.hero h2 span {
+  color: #5fd008;
+}
+
+.hero p {
+  font-size: 1.2rem;
+  color: #ccc;
+  margin-bottom: 2rem;
+}
+
+.hero button {
+  background: #07c864;
+  color: white;
+  padding: 12px 28px;
+  font-size: 1.1rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.hero button:hover {
+  background: #00a41b;
+}
+
+.hero .auth-nav-btn {
+  margin-top: 1rem;
+  background: linear-gradient(135deg, #00adb5, #16213e);
+  color: #fff;
+  padding: 12px 28px;
+  font-size: 1.1rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(0,173,181,0.13);
+  transition: background 0.3s, color 0.2s, transform 0.2s;
+  display: block;
+}
+.hero .auth-nav-btn:hover {
+  background: linear-gradient(135deg, #16213e, #00adb5);
+  color: #fff;
+  transform: translateY(-2px) scale(1.03);
+}
+
+.auth-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(20, 20, 40, 0.75);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s;
+}
+
+
+
+.auth-modal .auth-card {
+  position: relative;
+  margin: 0;
+  min-width: 320px;
+  max-width: 380px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+}
+
+
+.auth-card-modal-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 480px) {
+  .auth-modal .auth-card {
+    min-width: 90vw;
+    max-width: 98vw;
+    padding: 1rem 0.5rem;
+  }
+  .auth-modal {
+    min-width: unset;
+    max-width: 100vw;
+    padding: 0;
+  }
+}
