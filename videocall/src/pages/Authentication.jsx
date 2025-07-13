@@ -109,7 +109,7 @@ export default function Authentication({setShowForm}) {
               onError={() => {
                 setError('Google Sign In Failed');
               }}
-              width="240px"
+              width="340px"
             />
             {/* Facebook Login - Temporarily disabled
             <FacebookLogin
