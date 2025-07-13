@@ -63,7 +63,7 @@ export default function Authentication({setShowForm}) {
             </div>
           )}
           <div className="form-group">
-            <label htmlFor="username">Username</label>
+            <label htmlFor="username">Email Id</label>
             <input
               type="text"
               id="username"
@@ -109,7 +109,7 @@ export default function Authentication({setShowForm}) {
               onError={() => {
                 setError('Google Sign In Failed');
               }}
-              width="100%"
+              width="240px"
             />
             {/* Facebook Login - Temporarily disabled
             <FacebookLogin
