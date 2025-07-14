@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 import { useParams } from "react-router-dom";
 import styles from "../styles/VideoMeet.module.css";
+import Whiteboard from "../components/whiteboard";
 
 const server_url = "http://localhost:5000";
 const peerConfigConnections = {
@@ -51,6 +52,7 @@ export default function VideoMeetComponent() {
   const [askForUsername, setAskForUsername] = useState(true);
   const [username, setUsername] = useState("");
   const [videos, setVideos] = useState([]);
+  const [showWhiteboard, setShowWhiteboard] = useState(false);
   // Remove window.localStream and window.blankVideoTrack usage
   // Use refs for local stream and blank track
   const localStreamRef = useRef(null);
@@ -458,6 +460,9 @@ export default function VideoMeetComponent() {
             <button onClick={() => setShowModal(!showModal)}>
               <i className="fas fa-comment-dots"></i> Chat ({newMessages})
             </button>
+            <button onClick={() => setShowWhiteboard((prev) => !prev)}>
+              <i className="fas fa-chalkboard"></i> Whiteboard
+            </button>
           </div>
 
           {/* Video grid: horizontal, wrapping flex */}
@@ -575,6 +580,13 @@ export default function VideoMeetComponent() {
               </div>
             </div>
           )}
+          {/* Whiteboard overlay */}
+          <Whiteboard
+            socket={socketRef.current}
+            roomId={meetingId}
+            visible={showWhiteboard}
+            onClose={() => setShowWhiteboard(false)}
+          />
         </div>
       )}
     </div>
