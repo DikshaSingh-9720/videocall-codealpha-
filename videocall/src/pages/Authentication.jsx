@@ -111,37 +111,7 @@ export default function Authentication({setShowForm}) {
               }}
               width="340px"
             />
-            {/* Facebook Login - Temporarily disabled
-            <FacebookLogin
-              appId="YOUR_FACEBOOK_APP_ID"
-              callback={response => {
-                console.log('Facebook response:', response);
-                if (response.status === 'unknown') setError('Facebook Sign In Failed');
-              }}
-              render={renderProps => (
-                <button className="social-btn facebook" onClick={renderProps.onClick} type="button">
-                  <i className="fab fa-facebook"></i> Facebook
-                </button>
-              )}
-            />
-            */}
-            {/* LinkedIn Login - Temporarily disabled
-            <LinkedIn
-              clientId="YOUR_LINKEDIN_CLIENT_ID"
-              onSuccess={code => {
-                console.log('LinkedIn code:', code);
-              }}
-              onError={err => {
-                setError('LinkedIn Sign In Failed');
-              }}
-              redirectUri={window.location.origin + '/auth'}
-              renderElement={({ onClick, disabled }) => (
-                <button className="social-btn linkedin" onClick={onClick} disabled={disabled} type="button">
-                  <i className="fab fa-linkedin"></i> LinkedIn
-                </button>
-              )}
-            />
-            */}
+           
           </div>
         </div>
         <div className="auth-toggle">

@@ -17,6 +17,19 @@ const peerConfigConnections = {
 const connections = {};
 const iceCandidatesQueue = {};
 
+// Helper to create a blank video track
+function createBlankVideoTrack() {
+  console.log("[DEBUG] Creating blank video track");
+  const canvas = document.createElement('canvas');
+  canvas.width = 640;
+  canvas.height = 480;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'black';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const stream = canvas.captureStream(5); // 5 fps is enough for a blank track
+  return stream.getVideoTracks()[0];
+}
+
 export default function VideoMeetComponent() {
   const { meetingId } = useParams();
   const socketRef = useRef();
@@ -38,12 +51,72 @@ export default function VideoMeetComponent() {
   const [askForUsername, setAskForUsername] = useState(true);
   const [username, setUsername] = useState("");
   const [videos, setVideos] = useState([]);
+  // Remove window.localStream and window.blankVideoTrack usage
+  // Use refs for local stream and blank track
+  const localStreamRef = useRef(null);
+  const blankVideoTrackRef = useRef(null);
 
+  // Main logic for toggling video/audio
   useEffect(() => {
-    getPermissions();
-  }, []);
+    // Helper to update all peer connections with a new video track
+    const updatePeerVideoTracks = (track) => {
+      Object.values(connections).forEach(pc => {
+        const sender = pc.getSenders().find(s => s.track?.kind === "video");
+        if (sender && track) {
+          sender.replaceTrack(track);
+        }
+      });
+    };
 
-  // Clear chat messages when call ends
+    // Helper to update all peer connections with a new audio track
+    const updatePeerAudioTracks = (track) => {
+      Object.values(connections).forEach(pc => {
+        const sender = pc.getSenders().find(s => s.track?.kind === "audio");
+        if (sender && track) {
+          sender.replaceTrack(track);
+        }
+      });
+    };
+
+    // Main logic for toggling video/audio
+    const setupStream = async () => {
+      if (video) {
+        // Get real camera stream
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio });
+          localStreamRef.current = stream;
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = stream;
+          }
+          // Replace video and audio tracks for peers
+          const videoTrack = stream.getVideoTracks()[0];
+          const audioTrack = stream.getAudioTracks()[0];
+          updatePeerVideoTracks(videoTrack);
+          updatePeerAudioTracks(audioTrack);
+          // Clean up blank track if it exists
+          if (blankVideoTrackRef.current) {
+            blankVideoTrackRef.current.stop();
+            blankVideoTrackRef.current = null;
+          }
+        } catch (err) {
+          // Handle error (e.g., permissions denied)
+        }
+      } else {
+        // Use blank video track for peers and local preview
+        const blankTrack = createBlankVideoTrack();
+        blankVideoTrackRef.current = blankTrack;
+        updatePeerVideoTracks(blankTrack);
+        // Set local preview to blank
+        const blankStream = new MediaStream([blankTrack]);
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = blankStream;
+        }
+      }
+    };
+    setupStream();
+  }, [video, audio]);
+
+  // Enter to send, Shift+Enter for newline
   const clearChat = () => {
     setMessages([]);
     setInputValue("");
@@ -60,6 +133,10 @@ export default function VideoMeetComponent() {
       setVideoAvailable(true);
       setAudioAvailable(true);
       setScreenAvailable(!!navigator.mediaDevices.getDisplayMedia);
+      localStreamRef.current = stream;
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
     } catch (err) {
       setVideoAvailable(false);
       setAudioAvailable(false);
@@ -67,30 +144,8 @@ export default function VideoMeetComponent() {
   };
 
   useEffect(() => {
-    if (video !== undefined && audio !== undefined) {
-      getUserMedia();
-    }
-  }, [video, audio]);
-
-  const getUserMedia = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video,
-        audio,
-      });
-      window.localStream = stream;
-      localVideoRef.current.srcObject = stream;
-      Object.keys(connections).forEach((id) => {
-        if (id === socketIdRef.current) return;
-        connections[id].addStream(stream);
-        connections[id].createOffer().then((description) => {
-          connections[id].setLocalDescription(description).then(() => {
-            socketRef.current.emit("signal", id, JSON.stringify({ sdp: description }));
-          });
-        });
-      });
-    } catch (error) {}
-  };
+    getPermissions();
+  }, []);
 
   const connectToSocketServer = () => {
     socketRef.current = io(server_url);
@@ -98,36 +153,49 @@ export default function VideoMeetComponent() {
     socketRef.current.on("connect", () => {
       socketIdRef.current = socketRef.current.id;
       socketRef.current.emit("join-call", meetingId);
-      socketRef.current.on("chat-message", addMessage);
+      socketRef.current.on("chat-message", (...args) => {
+        console.log("Received chat-message event:", args);
+        addMessage(...args);
+      });
       socketRef.current.on("user-left", (id) => {
         setVideos((videos) => videos.filter((v) => v.socketId !== id));
       });
       socketRef.current.on("user-joined", (id, clients) => {
+        console.log("User joined event:", id, clients);
         clients.forEach((socketListId) => {
-          connections[socketListId] = new RTCPeerConnection(peerConfigConnections);
-          connections[socketListId].onicecandidate = (event) => {
+          if (connections[socketListId]) return;
+          const pc = new RTCPeerConnection(peerConfigConnections);
+          connections[socketListId] = pc;
+          // Add local tracks
+          if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach(track => {
+              pc.addTrack(track, localStreamRef.current);
+            });
+          }
+          // Handle remote tracks
+          pc.ontrack = (event) => {
+            setVideos((prev) => {
+              // Avoid duplicates
+              const already = prev.find(v => v.socketId === socketListId);
+              if (already) return prev;
+              return [
+                ...prev,
+                { socketId: socketListId, stream: event.streams[0], name: "Participant" },
+              ];
+            });
+          };
+          pc.onicecandidate = (event) => {
             if (event.candidate) {
               socketRef.current.emit("signal", socketListId, JSON.stringify({ ice: event.candidate }));
             }
           };
-          connections[socketListId].onaddstream = (event) => {
-            setVideos((prev) => [
-              ...prev.filter((v) => v.socketId !== socketListId),
-              { socketId: socketListId, stream: event.stream, name: "Participant" },
-            ]);
-          };
-          if (window.localStream) {
-            window.localStream.getTracks().forEach((track) => {
-              connections[socketListId].addTrack(track, window.localStream);
-            });
-          }
         });
         if (id === socketIdRef.current) {
           for (let id2 in connections) {
             if (id2 === socketIdRef.current) continue;
-            connections[id2].addStream(window.localStream);
-            connections[id2].createOffer().then((description) => {
-              connections[id2].setLocalDescription(description).then(() => {
+            const pc = connections[id2];
+            pc.createOffer().then((description) => {
+              pc.setLocalDescription(description).then(() => {
                 socketRef.current.emit("signal", id2, JSON.stringify({ sdp: description }));
               });
             });
@@ -148,6 +216,31 @@ export default function VideoMeetComponent() {
     const signal = JSON.parse(message);
     if (fromId !== socketIdRef.current) {
       if (signal.sdp) {
+        if (!connections[fromId]) {
+          const pc = new RTCPeerConnection(peerConfigConnections);
+          connections[fromId] = pc;
+          // Add local tracks
+          if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach(track => {
+              pc.addTrack(track, localStreamRef.current);
+            });
+          }
+          pc.ontrack = (event) => {
+            setVideos((prev) => {
+              const already = prev.find(v => v.socketId === fromId);
+              if (already) return prev;
+              return [
+                ...prev,
+                { socketId: fromId, stream: event.streams[0], name: "Participant" },
+              ];
+            });
+          };
+          pc.onicecandidate = (event) => {
+            if (event.candidate) {
+              socketRef.current.emit("signal", fromId, JSON.stringify({ ice: event.candidate }));
+            }
+          };
+        }
         connections[fromId]
           .setRemoteDescription(new RTCSessionDescription(signal.sdp))
           .then(() => {
@@ -193,7 +286,7 @@ export default function VideoMeetComponent() {
           stopScreenShare();
         };
         setScreen(true);
-      } catch (err) {}
+      } catch (err) { }
     } else {
       stopScreenShare();
     }
@@ -209,7 +302,7 @@ export default function VideoMeetComponent() {
       }
     });
     localVideoRef.current.srcObject = stream;
-    window.localStream = stream;
+    localStreamRef.current = stream;
     setScreen(false);
   };
 
@@ -230,20 +323,24 @@ export default function VideoMeetComponent() {
   };
 
   // Add timestamp to each message
-  const addMessage = (data, sender, socketIdSender, type = "text", filename = "") => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        sender,
-        data,
-        type,
-        filename,
-        timestamp: new Date().toISOString(),
-        sending: false,
-      },
-    ]);
+  const addMessage = (data, sender, socketIdSender, type = "text", filename = "", timestamp = null) => {
+    setMessages((prev) => {
+      const updated = [
+        ...prev,
+        {
+          sender,
+          data,
+          type: type || "text",
+          filename: filename || "",
+          timestamp: timestamp || new Date().toISOString(),
+          sending: false,
+        },
+      ];
+      console.log("Updated messages array:", updated);
+      return updated;
+    });
     if (socketIdSender !== socketIdRef.current) setNewMessages((prev) => prev + 1);
-    if (type === "file" && sender === username) {
+    if ((type || "text") === "file" && sender === username) {
       setFile(null);
     }
   };
@@ -263,26 +360,67 @@ export default function VideoMeetComponent() {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  // --- Chatbox State and Socket Setup ---
+  useEffect(() => {
+    if (!socketRef.current) return;
+    // Listen for incoming chat messages
+    socketRef.current.on("chat-message", (data, sender, socketIdSender, type = "text", filename = "", timestamp = null) => {
+      setMessages(prev => [
+        ...prev,
+        {
+          sender,
+          data,
+          type: type || "text",
+          filename: filename || "",
+          timestamp: timestamp || new Date().toISOString(),
+        }
+      ]);
+    });
+    // Cleanup on unmount
+    return () => {
+      socketRef.current.off("chat-message");
+    };
+  }, []);
+
   useEffect(() => {
     if (chatMessagesRef.current) {
       chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
     }
-  }, [messages, showModal]);
+  }, [messages]);
+
+  const handleSend = () => {
+    if (!socketRef.current || !inputValue.trim()) return;
+    socketRef.current.emit("chat-message", inputValue, username, "text", "", new Date().toISOString());
+    setInputValue("");
+  };
+
+  const handleFileSend = () => {
+    if (!socketRef.current || !file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      socketRef.current.emit("chat-message", reader.result, username, "file", file.name, new Date().toISOString());
+      setFile(null);
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Unified send handler for text and file
-  const handleSend = () => {
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        socketRef.current.emit("chat-message", reader.result, username, "file", file.name);
-        setFile(null);
-      };
-      reader.readAsDataURL(file);
-    } else if (inputValue.trim()) {
-      socketRef.current.emit("chat-message", inputValue, username);
-      setInputValue("");
-    }
-  };
+  // const handleSend = () => {
+  //   if (!socketRef.current || !username.trim()) return;
+  //   if (file) {
+  //     const reader = new FileReader();
+  //     reader.onload = () => {
+  //       console.log("Sending chat file message");
+  //       socketRef.current.emit("chat-message", reader.result, username, "file", file.name);
+  //       setFile(null);
+  //     };
+  //     reader.readAsDataURL(file);
+  //   } else if (inputValue.trim()) {
+  //     console.log("Sending chat text message:", inputValue);
+  //     socketRef.current.emit("chat-message", inputValue, username);
+  //     setInputValue("");
+  //   }
+  // };
 
   return (
     <div className={styles.container}>
@@ -304,7 +442,7 @@ export default function VideoMeetComponent() {
         <div className={styles.meetVideoContainer}>
           <div className={styles.buttonContainers}>
             <button onClick={() => setVideo(!video)}>
-              {video ? <i className="fas fa-video"></i> : <i className="fas fa-video-slash"></i>} On
+              {video ? <i className="fas fa-video"></i> : <i className="fas fa-video-slash"></i>} {video ? "On" : "Off"}
             </button>
             <button onClick={() => setAudio(!audio)}>
               {audio ? <i className="fas fa-microphone"></i> : <i className="fas fa-microphone-slash"></i>} On
@@ -335,22 +473,22 @@ export default function VideoMeetComponent() {
               <div className={styles.participantName}>{username || "You"}</div>
             </div>
             {/* Remote videos */}
-          {videos.map((video) => (
-            <div className={styles.conferenceView} key={video.socketId}>
-              <video
-                data-socket={video.socketId}
-                ref={(ref) => {
-                  if (ref && video.stream) {
-                    ref.srcObject = video.stream;
-                  }
-                }}
-                autoPlay
-                playsInline
-                className={styles.videoElement}
-              />
+            {videos.map((video) => (
+              <div className={styles.conferenceView} key={video.socketId}>
+                <video
+                  data-socket={video.socketId}
+                  ref={(ref) => {
+                    if (ref && video.stream) {
+                      ref.srcObject = video.stream;
+                    }
+                  }}
+                  autoPlay
+                  playsInline
+                  className={styles.videoElement}
+                />
                 <div className={styles.participantName}>{video.name || "Participant"}</div>
-            </div>
-          ))}
+              </div>
+            ))}
           </div>
 
           {showModal && (
@@ -358,29 +496,34 @@ export default function VideoMeetComponent() {
               <div className={styles.chatContainer}>
                 <div className={styles.chatHeader}>
                   <h2>Chat</h2>
-                  <button className={styles.closeButton} onClick={() => setShowModal(false)} title="Close chat"><i className="fas fa-times"></i></button>
+                  <button className={styles.closeButton} onClick={() => setShowModal(false)} title="Close chat">
+                    <i className="fas fa-times"></i>
+                  </button>
                 </div>
                 <div className={styles.chatMessages} ref={chatMessagesRef}>
-                  {messages.map((msg, index) => {
+                  {messages.map((msg, idx) => {
                     const isSender = msg.sender === username;
+                    const msgType = msg.type || "text";
+                    const msgFilename = msg.filename || "";
+                    const msgTimestamp = msg.timestamp || new Date().toISOString();
                     return (
                       <div
-                        key={index}
+                        key={idx}
                         className={`${styles.messageBubble} ${isSender ? styles.senderMessage : styles.receiverMessage}`}
                       >
                         <div className={styles.messageHeader}>
                           <strong>{msg.sender}</strong>
-                          <span className={styles.messageTime}>{formatTime(msg.timestamp)}</span>
+                          <span className={styles.messageTime}>{formatTime(msgTimestamp)}</span>
                         </div>
-                        {msg.type === "file" ? (
-                          msg.data.startsWith("data:image") ? (
-                            <a href={msg.data} download={msg.filename} className={styles.fileLink} target="_blank" rel="noopener noreferrer">
-                              <img src={msg.data} alt={msg.filename} className={styles.chatImagePreview} />
-                              <span>{msg.filename}</span>
+                        {msgType === "file" ? (
+                          msg.data && msg.data.startsWith("data:image") ? (
+                            <a href={msg.data} download={msgFilename} className={styles.fileLink} target="_blank" rel="noopener noreferrer">
+                              <img src={msg.data} alt={msgFilename} className={styles.chatImagePreview} />
+                              <span>{msgFilename}</span>
                             </a>
                           ) : (
-                            <a href={msg.data} download={msg.filename} className={styles.fileLink} target="_blank" rel="noopener noreferrer">
-                              <span className={styles.fileIcon}>📄</span> {msg.filename}
+                            <a href={msg.data} download={msgFilename} className={styles.fileLink} target="_blank" rel="noopener noreferrer">
+                              <span className={styles.fileIcon}>📄</span> {msgFilename}
                             </a>
                           )
                         ) : (
@@ -395,7 +538,7 @@ export default function VideoMeetComponent() {
                     <textarea
                       value={inputValue}
                       onChange={e => setInputValue(e.target.value)}
-                      onKeyDown={handleInputKeyDown}
+                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                       placeholder="Type a message..."
                       rows={1}
                       className={styles.chatTextarea}
@@ -427,7 +570,7 @@ export default function VideoMeetComponent() {
                   <label htmlFor="file-upload" className={styles.attachButton} title="Attach File">
                     📎
                   </label>
-                  <button className={styles.sendButton} onClick={handleSend}>Send</button>
+                  <button className={styles.sendButton} onClick={file ? handleFileSend : handleSend}>Send</button>
                 </div>
               </div>
             </div>
