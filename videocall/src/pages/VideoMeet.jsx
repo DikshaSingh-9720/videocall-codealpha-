@@ -58,7 +58,7 @@ export default function VideoMeetComponent() {
   const localStreamRef = useRef(null);
   const blankVideoTrackRef = useRef(null);
 
-  // Main logic for toggling video/audio
+  // Main logic for toggling video/whiteboard (remove audio from dependency)
   useEffect(() => {
     // Helper to update all peer connections with a new video track
     const updatePeerVideoTracks = (track) => {
@@ -69,32 +69,19 @@ export default function VideoMeetComponent() {
         }
       });
     };
-
-    // Helper to update all peer connections with a new audio track
-    const updatePeerAudioTracks = (track) => {
-      Object.values(connections).forEach(pc => {
-        const sender = pc.getSenders().find(s => s.track?.kind === "audio");
-        if (sender && track) {
-          sender.replaceTrack(track);
-        }
-      });
-    };
-
-    // Main logic for toggling video/audio
+    // Main logic for toggling video/whiteboard
     const setupStream = async () => {
       if (video) {
         // Get real camera stream
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio });
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
           localStreamRef.current = stream;
           if (localVideoRef.current) {
             localVideoRef.current.srcObject = stream;
           }
-          // Replace video and audio tracks for peers
+          // Replace video tracks for peers
           const videoTrack = stream.getVideoTracks()[0];
-          const audioTrack = stream.getAudioTracks()[0];
           updatePeerVideoTracks(videoTrack);
-          updatePeerAudioTracks(audioTrack);
           // Clean up blank track if it exists
           if (blankVideoTrackRef.current) {
             blankVideoTrackRef.current.stop();
@@ -116,7 +103,23 @@ export default function VideoMeetComponent() {
       }
     };
     setupStream();
-  }, [video, audio]);
+  }, [video, showWhiteboard]);
+
+  // New effect: toggle audio track enabled/disabled
+  useEffect(() => {
+    if (!localStreamRef.current) return;
+    const audioTrack = localStreamRef.current.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = audio;
+    }
+    // Optionally update all peer connections
+    Object.values(connections).forEach(pc => {
+      const sender = pc.getSenders().find(s => s.track?.kind === "audio");
+      if (sender && audioTrack) {
+        sender.replaceTrack(audioTrack);
+      }
+    });
+  }, [audio]);
 
   // Enter to send, Shift+Enter for newline
   const clearChat = () => {

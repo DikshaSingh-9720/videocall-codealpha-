@@ -1,73 +1,118 @@
 import React, { useRef, useEffect, useState } from "react";
+import "./whiteboard.css";
 
 const COLORS = ["#000000", "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FFFFFF"];
+const DEFAULT_THICKNESS = 3;
 
 export default function Whiteboard({ socket, roomId, visible, onClose }) {
   const canvasRef = useRef(null);
+  const ctxRef = useRef(null);
   const [drawing, setDrawing] = useState(false);
   const [color, setColor] = useState(COLORS[0]);
+  const [thickness, setThickness] = useState(DEFAULT_THICKNESS);
   const [tool, setTool] = useState("pen"); // 'pen' or 'eraser'
   const [lastPoint, setLastPoint] = useState(null);
+  const [show, setShow] = useState(visible);
 
-  // Draw a line on the canvas
-  const drawLine = (ctx, x0, y0, x1, y1, color, width, emit) => {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = width;
+  // Broadcast whiteboard open/close
+  useEffect(() => {
+    if (socket && roomId) {
+      socket.emit("whiteboard-toggle", { roomId, show: visible });
+    }
+    setShow(visible);
+  }, [visible, socket, roomId]);
+
+  // Listen for whiteboard toggle from others
+  useEffect(() => {
+    if (!socket) return;
+    const handleToggle = ({ roomId: remoteRoom, show: remoteShow }) => {
+      if (remoteRoom === roomId) setShow(remoteShow);
+    };
+    socket.on("whiteboard-toggle", handleToggle);
+    return () => socket.off("whiteboard-toggle", handleToggle);
+  }, [socket, roomId]);
+
+  // Drawing logic
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    ctxRef.current = canvasRef.current.getContext("2d");
+  }, [show]);
+
+  // Drawing event handlers
+  const getPointer = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    if (e.touches) {
+      return {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top,
+      };
+    } else {
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+    }
+  };
+
+  const startDraw = (e) => {
+    setDrawing(true);
+    setLastPoint(getPointer(e));
+  };
+
+  const draw = (e, emit = true) => {
+    if (!drawing) return;
+    const newPoint = getPointer(e);
+    const ctx = ctxRef.current;
+    if (!ctx || !lastPoint) return;
+    ctx.strokeStyle = tool === "pen" ? color : "#fff";
+    ctx.lineWidth = tool === "pen" ? thickness : 20;
     ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.lineTo(x1, y1);
+    ctx.moveTo(lastPoint.x, lastPoint.y);
+    ctx.lineTo(newPoint.x, newPoint.y);
     ctx.stroke();
     ctx.closePath();
-    if (!emit) return;
-    if (socket && roomId) {
-      socket.emit("whiteboard-draw", { x0, y0, x1, y1, color, width, roomId });
+    if (emit && socket && roomId) {
+      socket.emit("drawing", {
+        roomId,
+        tool,
+        color,
+        thickness,
+        from: lastPoint,
+        to: newPoint,
+      });
     }
+    setLastPoint(newPoint);
   };
 
-  // Mouse/touch event handlers
-  const handlePointerDown = (e) => {
-    setDrawing(true);
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-    const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-    setLastPoint({ x, y });
-  };
-
-  const handlePointerMove = (e) => {
-    if (!drawing) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-    const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-    if (lastPoint) {
-      const ctx = canvasRef.current.getContext("2d");
-      const drawColor = tool === "pen" ? color : "#FFFFFF";
-      const width = tool === "pen" ? 2 : 16;
-      drawLine(ctx, lastPoint.x, lastPoint.y, x, y, drawColor, width, true);
-      setLastPoint({ x, y });
-    }
-  };
-
-  const handlePointerUp = () => {
+  const endDraw = () => {
     setDrawing(false);
     setLastPoint(null);
   };
 
-  // Listen for remote draw events
+  // Listen for remote drawing events
   useEffect(() => {
     if (!socket) return;
-    const handleRemoteDraw = ({ x0, y0, x1, y1, color: remoteColor, width, roomId: remoteRoom }) => {
+    const handleDrawing = ({ roomId: remoteRoom, tool: remoteTool, color: remoteColor, thickness: remoteThickness, from, to }) => {
       if (remoteRoom !== roomId) return;
-      const ctx = canvasRef.current.getContext("2d");
-      drawLine(ctx, x0, y0, x1, y1, remoteColor, width, false);
+      const ctx = ctxRef.current;
+      if (!ctx) return;
+      ctx.strokeStyle = remoteTool === "pen" ? remoteColor : "#fff";
+      ctx.lineWidth = remoteTool === "pen" ? remoteThickness : 20;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+      ctx.closePath();
     };
-    socket.on("whiteboard-draw", handleRemoteDraw);
-    return () => socket.off("whiteboard-draw", handleRemoteDraw);
+    socket.on("drawing", handleDrawing);
+    return () => socket.off("drawing", handleDrawing);
   }, [socket, roomId]);
 
   // Clear board
   const handleClear = () => {
-    const ctx = canvasRef.current.getContext("2d");
+    const ctx = ctxRef.current;
     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
     if (socket && roomId) {
       socket.emit("whiteboard-clear", { roomId });
@@ -79,7 +124,7 @@ export default function Whiteboard({ socket, roomId, visible, onClose }) {
     if (!socket) return;
     const handleRemoteClear = ({ roomId: remoteRoom }) => {
       if (remoteRoom !== roomId) return;
-      const ctx = canvasRef.current.getContext("2d");
+      const ctx = ctxRef.current;
       ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
     };
     socket.on("whiteboard-clear", handleRemoteClear);
@@ -98,34 +143,49 @@ export default function Whiteboard({ socket, roomId, visible, onClose }) {
     resize();
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
-  }, [visible]);
+  }, [show]);
 
-  if (!visible) return null;
+  if (!show) return null;
 
   return (
-    <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", background: "#fff", zIndex: 20 }}>
-      <div style={{ display: "flex", alignItems: "center", padding: 8, background: "#eee", borderBottom: "1px solid #ccc" }}>
-        <span style={{ marginRight: 8 }}>Color:</span>
+    <div className="whiteboard-overlay">
+      <div className="whiteboard-toolbar">
+        <span>Color:</span>
         {COLORS.map((c) => (
-          <button key={c} onClick={() => { setColor(c); setTool("pen"); }} style={{ background: c, width: 24, height: 24, border: color === c && tool === "pen" ? "2px solid #333" : "1px solid #ccc", marginRight: 4 }} />
+          <button
+            key={c}
+            className={"color-btn" + (color === c && tool === "pen" ? " selected" : "")}
+            style={{ background: c }}
+            onClick={() => { setColor(c); setTool("pen"); }}
+          />
         ))}
-        <button onClick={() => setTool("eraser")}
-          style={{ marginLeft: 8, border: tool === "eraser" ? "2px solid #333" : "1px solid #ccc" }}>
+        <span>Thickness:</span>
+        <input
+          type="range"
+          min={1}
+          max={20}
+          value={thickness}
+          onChange={e => { setThickness(Number(e.target.value)); setTool("pen"); }}
+        />
+        <button
+          className={"tool-btn" + (tool === "eraser" ? " selected" : "")}
+          onClick={() => setTool("eraser")}
+        >
           Eraser
         </button>
-        <button onClick={handleClear} style={{ marginLeft: 16 }}>Clear</button>
-        <button onClick={onClose} style={{ marginLeft: 16 }}>Close</button>
+        <button className="tool-btn" onClick={handleClear}>Clear</button>
+        <button className="tool-btn" onClick={onClose}>Close</button>
       </div>
       <canvas
         ref={canvasRef}
-        style={{ width: "100%", height: "calc(100% - 40px)", touchAction: "none", cursor: tool === "eraser" ? "cell" : "crosshair" }}
-        onMouseDown={handlePointerDown}
-        onMouseMove={handlePointerMove}
-        onMouseUp={handlePointerUp}
-        onMouseLeave={handlePointerUp}
-        onTouchStart={handlePointerDown}
-        onTouchMove={handlePointerMove}
-        onTouchEnd={handlePointerUp}
+        className="whiteboard-canvas"
+        onMouseDown={startDraw}
+        onMouseMove={draw}
+        onMouseUp={endDraw}
+        onMouseLeave={endDraw}
+        onTouchStart={startDraw}
+        onTouchMove={draw}
+        onTouchEnd={endDraw}
       />
     </div>
   );
