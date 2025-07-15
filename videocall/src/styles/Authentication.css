@@ -193,8 +193,8 @@
 }
 
 .toggle-btn:hover {
-  color: #009ba4;
-  text-decoration: underline solid #009ba4;
+  color: #fff;
+  text-decoration: underline solid #218c92;
 }
 
 /* Social Login Styles */
