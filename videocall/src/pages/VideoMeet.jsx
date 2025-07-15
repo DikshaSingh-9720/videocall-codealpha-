@@ -105,20 +105,13 @@ export default function VideoMeetComponent() {
     setupStream();
   }, [video, showWhiteboard]);
 
-  // New effect: toggle audio track enabled/disabled
+  // Audio toggle effect: only enable/disable the existing audio track
   useEffect(() => {
     if (!localStreamRef.current) return;
     const audioTrack = localStreamRef.current.getAudioTracks()[0];
     if (audioTrack) {
       audioTrack.enabled = audio;
     }
-    // Optionally update all peer connections
-    Object.values(connections).forEach(pc => {
-      const sender = pc.getSenders().find(s => s.track?.kind === "audio");
-      if (sender && audioTrack) {
-        sender.replaceTrack(audioTrack);
-      }
-    });
   }, [audio]);
 
   // Enter to send, Shift+Enter for newline
@@ -394,38 +387,22 @@ export default function VideoMeetComponent() {
   }, [messages]);
 
   const handleSend = () => {
-    if (!socketRef.current || !inputValue.trim()) return;
-    socketRef.current.emit("chat-message", inputValue, username, "text", "", new Date().toISOString());
-    setInputValue("");
+    if (!socketRef.current) return;
+    // Send text if present
+    if (inputValue.trim()) {
+      socketRef.current.emit("chat-message", inputValue, username, "text", "", new Date().toISOString());
+      setInputValue("");
+    }
+    // Send file if present
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        socketRef.current.emit("chat-message", reader.result, username, "file", file.name, new Date().toISOString());
+        setFile(null);
+      };
+      reader.readAsDataURL(file);
+    }
   };
-
-  const handleFileSend = () => {
-    if (!socketRef.current || !file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      socketRef.current.emit("chat-message", reader.result, username, "file", file.name, new Date().toISOString());
-      setFile(null);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // Unified send handler for text and file
-  // const handleSend = () => {
-  //   if (!socketRef.current || !username.trim()) return;
-  //   if (file) {
-  //     const reader = new FileReader();
-  //     reader.onload = () => {
-  //       console.log("Sending chat file message");
-  //       socketRef.current.emit("chat-message", reader.result, username, "file", file.name);
-  //       setFile(null);
-  //     };
-  //     reader.readAsDataURL(file);
-  //   } else if (inputValue.trim()) {
-  //     console.log("Sending chat text message:", inputValue);
-  //     socketRef.current.emit("chat-message", inputValue, username);
-  //     setInputValue("");
-  //   }
-  // };
 
   return (
     <div className={styles.container}>
@@ -546,7 +523,7 @@ export default function VideoMeetComponent() {
                     <textarea
                       value={inputValue}
                       onChange={e => setInputValue(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                      onKeyDown={handleInputKeyDown}
                       placeholder="Type a message..."
                       rows={1}
                       className={styles.chatTextarea}
@@ -578,7 +555,7 @@ export default function VideoMeetComponent() {
                   <label htmlFor="file-upload" className={styles.attachButton} title="Attach File">
                     📎
                   </label>
-                  <button className={styles.sendButton} onClick={file ? handleFileSend : handleSend}>Send</button>
+                  <button className={styles.sendButton} onClick={handleSend} disabled={!inputValue.trim() && !file}>Send</button>
                 </div>
               </div>
             </div>

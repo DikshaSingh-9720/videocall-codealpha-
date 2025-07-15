@@ -10,6 +10,12 @@
   flex-direction: column;
 }
 
+.whiteboard-toolbar span {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #333;
+}
+
 .whiteboard-toolbar {
   display: flex;
   align-items: center;
