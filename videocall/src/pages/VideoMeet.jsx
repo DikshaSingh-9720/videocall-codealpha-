@@ -75,6 +75,10 @@ export default function VideoMeetComponent() {
         // Get real camera stream
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          // Set audio tracks to match current audio state
+          stream.getAudioTracks().forEach(track => {
+            track.enabled = audio;
+          });
           localStreamRef.current = stream;
           if (localVideoRef.current) {
             localVideoRef.current.srcObject = stream;
@@ -108,10 +112,10 @@ export default function VideoMeetComponent() {
   // Audio toggle effect: only enable/disable the existing audio track
   useEffect(() => {
     if (!localStreamRef.current) return;
-    const audioTrack = localStreamRef.current.getAudioTracks()[0];
-    if (audioTrack) {
-      audioTrack.enabled = audio;
-    }
+    // Ensure all audio tracks are set to the correct enabled state
+    localStreamRef.current.getAudioTracks().forEach(track => {
+      track.enabled = audio;
+    });
   }, [audio]);
 
   // Enter to send, Shift+Enter for newline
@@ -119,7 +123,7 @@ export default function VideoMeetComponent() {
     setMessages([]);
     setInputValue("");
     setFile(null);
-    setNewMessages(0);
+    setNewMessages(0); // Always reset unread count
   };
 
   const getPermissions = async () => {
@@ -127,6 +131,10 @@ export default function VideoMeetComponent() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
+      });
+      // Set audio tracks to match current audio state
+      stream.getAudioTracks().forEach(track => {
+        track.enabled = audio;
       });
       setVideoAvailable(true);
       setAudioAvailable(true);
@@ -292,6 +300,10 @@ export default function VideoMeetComponent() {
 
   const stopScreenShare = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ video, audio });
+    // Set audio tracks to match current audio state
+    stream.getAudioTracks().forEach(track => {
+      track.enabled = audio;
+    });
     const videoTrack = stream.getVideoTracks()[0];
     Object.values(connections).forEach((pc) => {
       const sender = pc.getSenders().find((s) => s.track.kind === "video");
@@ -337,7 +349,7 @@ export default function VideoMeetComponent() {
       console.log("Updated messages array:", updated);
       return updated;
     });
-    if (socketIdSender !== socketIdRef.current) setNewMessages((prev) => prev + 1);
+    if (socketIdSender !== socketIdRef.current && !showModal) setNewMessages((prev) => prev + 1);
     if ((type || "text") === "file" && sender === username) {
       setFile(null);
     }
@@ -403,6 +415,11 @@ export default function VideoMeetComponent() {
       reader.readAsDataURL(file);
     }
   };
+
+  // Reset unread count when opening the chat modal
+  useEffect(() => {
+    if (showModal) setNewMessages(0);
+  }, [showModal]);
 
   return (
     <div className={styles.container}>
@@ -512,7 +529,8 @@ export default function VideoMeetComponent() {
                             </a>
                           )
                         ) : (
-                          <span className={styles.messageText}>{msg.data}</span>
+                          // Preserve message formatting
+                          <span className={styles.messageText} style={{whiteSpace: 'pre-wrap'}}>{msg.data}</span>
                         )}
                       </div>
                     );
