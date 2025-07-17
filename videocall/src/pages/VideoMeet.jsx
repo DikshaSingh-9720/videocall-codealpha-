@@ -10,7 +10,7 @@ import { useParams } from "react-router-dom";
 import styles from "../styles/VideoMeet.module.css";
 import Whiteboard from "../components/whiteboard";
 
-const server_url = "http://localhost:5000";
+const server_url = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const peerConfigConnections = {
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
 };
