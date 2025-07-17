@@ -12,16 +12,21 @@ import { connectToSocket } from "./controllers/socketManager.js";
 
 import cors from "cors";
 import userRoutes from "./routes/users.routes.js";
+import session from "express-session";
+import passport from "./config/passport.js";
 
 const app = express();
 const server = createServer(app);
 const io = connectToSocket(server);
 
 
-app.set("port", (process.env.PORT || 8000))
+app.set("port", (process.env.PORT || 5000))
 app.use(cors());
 app.use(express.json({ limit: "40kb" }));
 app.use(express.urlencoded({ limit: "40kb", extended: true }));
+app.use(session({ secret: "your-session-secret", resave: false, saveUninitialized: true }));
+app.use(passport.initialize());
+app.use(passport.session());
 
 app.use("/api/v1/users", userRoutes);
 
