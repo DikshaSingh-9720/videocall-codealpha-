@@ -2,7 +2,7 @@ import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { Authcontext } from "../context/Authcontext";
 import "../styles/Authentication.css";
-import { GoogleLogin } from '@react-oauth/google';
+// import { GoogleLogin } from '@react-oauth/google';
 // import FacebookLogin from 'react-facebook-login/dist/facebook-login-render-props';
 // import { LinkedIn } from 'react-linkedin-login-oauth2';
 
@@ -98,7 +98,7 @@ export default function Authentication({setShowForm}) {
           {/* <div className="social-divider"><span>or sign in with</span></div> */}
           <div className="social-buttons">
             {/* Google Login */}
-            <GoogleLogin
+            {/* <GoogleLogin
               onSuccess={async credentialResponse => {
                 try {
                   await handleSocialLogin('google', credentialResponse.credential);
@@ -110,7 +110,7 @@ export default function Authentication({setShowForm}) {
                 setError('Google Sign In Failed');
               }}
               width="340px"
-            />
+            /> */}
            
           </div>
         </div>

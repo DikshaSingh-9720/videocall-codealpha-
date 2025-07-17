@@ -5,7 +5,7 @@ import History from "./pages/History"
 import VideoMeet from "./pages/VideoMeet"
 import { AuthProvider } from "./context/Authcontext"
 import { Routes, Route, BrowserRouter } from 'react-router-dom'
-import GoogleAuthHandler from "./pages/GoogleAuthHandler";
+// import GoogleAuthHandler from "./pages/GoogleAuthHandler";
 
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -20,8 +20,8 @@ function App() {
             <Route path="/auth" element={<Authentication />} />
             <Route path='/dashboard' element={<Dashboard />} />
             <Route path='/history' element={<History />} />
-            <Route path="/:url" element={<VideoMeet />} />
-            <Route path="/auth/google" element={<GoogleAuthHandler />} />
+            <Route path=":url" element={<VideoMeet />} />
+            {/* <Route path="/auth/google" element={<GoogleAuthHandler />} /> */}
           </Routes>
           <ToastContainer
             position="top-right"
