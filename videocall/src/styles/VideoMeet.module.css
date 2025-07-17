@@ -737,6 +737,34 @@
 }
 
 @media (max-width: 600px) {
+  .videoGrid {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 0.7rem;
+    width: 100vw;
+    padding-bottom: 1rem;
+  }
+  .conferenceView {
+    min-width: 180px;
+    max-width: 80vw;
+    padding: 0.2rem 0.2rem 1.2rem 0.2rem;
+    flex: 0 0 180px;
+    box-sizing: border-box;
+    margin-right: 0.7rem;
+  }
+  .videoElement {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 12px;
+  }
+  .participantName {
+    font-size: 1rem;
+    text-align: center;
+    margin-top: 0.3rem;
+    color: #333;
+  }
   .chatRoom {
     position: fixed !important;
     left: 0;
