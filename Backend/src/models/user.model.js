@@ -17,11 +17,6 @@ const userSchema = new Schema(
         },
         token: { 
             type: String 
-        },
-        googleId: {
-            type: String,
-            unique: true,
-            sparse: true
         }
     }
 )

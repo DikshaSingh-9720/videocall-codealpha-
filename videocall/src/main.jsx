@@ -9,7 +9,6 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <GoogleOAuthProvider clientId="786495975280-h59tr7b0pivn7rkgkk01167dsh7i1arl.apps.googleusercontent.com">
       <App />
-      <Route path="/auth/google" element={<GoogleAuthHandler />} />
     </GoogleOAuthProvider>
   </StrictMode>,
 )
