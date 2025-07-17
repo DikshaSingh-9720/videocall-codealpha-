@@ -1,14 +1,17 @@
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Authcontext } from "../context/Authcontext";
+import { API_BASE_URL } from "../config/api";
 import "../styles/Authentication.css";
 // import { GoogleLogin } from '@react-oauth/google';
 // import FacebookLogin from 'react-facebook-login/dist/facebook-login-render-props';
 // import { LinkedIn } from 'react-linkedin-login-oauth2';
 
 export default function Authentication({setShowForm}) {
-  const [mode, setMode] = useState("login");
-  const [form, setForm] = useState({ name: "", username: "", password: "" });
+  const [isRegister, setIsRegister] = useState(true);
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const { handleLogin, handleRegister, isLoading, handleSocialLogin } = useContext(Authcontext);
   const navigate = useNavigate();
@@ -22,20 +25,23 @@ export default function Authentication({setShowForm}) {
     e.preventDefault();
     setError("");
     try {
-      if (mode === "login") {
-        await handleLogin(form.username, form.password);
-        navigate("/dashboard");
+      const endpoint = isRegister ? "/register" : "/login";
+      const payload = isRegister ? { name, username, password } : { username, password };
+      const res = await fetch(`${API_BASE_URL}/api/v1/users${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok && data.token) {
+        localStorage.setItem("token", data.token);
+        // Redirect to dashboard or show success
+        window.location.href = "/dashboard";
       } else {
-        if (!form.name) {
-          setError("Name is required for registration");
-          return;
-        }
-        await handleRegister(form.name, form.username, form.password);
-        setMode("login");
-        setForm({ name: "", username: "", password: "" });
+        setError(data.message || "Something went wrong");
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || "Something went wrong");
+      setError("Network error");
     }
   };
 
@@ -44,18 +50,18 @@ export default function Authentication({setShowForm}) {
       <div className="auth-card">
         <button className="auth-modal-close" title="Close"><span  onClick={() => setShowForm(false)}>&times;</span></button>
         <div className="auth-header">
-          <h2>{mode === "login" ? "Sign in to VideoMeet" : "Create your VideoMeet account"}</h2>
+          <h2>{isRegister ? "Create your VideoMeet account" : "Sign In to VideoMeet"}</h2>
         </div>
         <form className="auth-form" onSubmit={handleSubmit} autoComplete="on">
-          {mode === "register" && (
+          {isRegister && (
             <div className="form-group">
               <label htmlFor="name">Name</label>
               <input
                 type="text"
                 id="name"
                 name="name"
-                value={form.name}
-                onChange={handleChange}
+                value={name}
+                onChange={e => setName(e.target.value)}
                 placeholder="Your name"
                 autoComplete="name"
                 required
@@ -68,8 +74,8 @@ export default function Authentication({setShowForm}) {
               type="text"
               id="username"
               name="username"
-              value={form.username}
-              onChange={handleChange}
+              value={username}
+              onChange={e => setUsername(e.target.value)}
               placeholder="Email Id"
               autoComplete="Email Id"
               required
@@ -81,16 +87,16 @@ export default function Authentication({setShowForm}) {
               type="password"
               id="password"
               name="password"
-              value={form.password}
-              onChange={handleChange}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
               placeholder="Password"
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              autoComplete={isRegister ? "new-password" : "current-password"}
               required
             />
           </div>
           {error && <div className="auth-error" role="alert">{error}</div>}
           <button className="auth-btn" type="submit" disabled={isLoading}>
-            {isLoading ? (mode === "login" ? "Signing in..." : "Registering...") : (mode === "login" ? "Sign In" : "Register")}
+            {isLoading ? (isRegister ? "Registering..." : "Signing in...") : (isRegister ? "Register" : "Sign In")}
           </button>
         </form>
         {/* Social Login Buttons */}
@@ -116,15 +122,15 @@ export default function Authentication({setShowForm}) {
         </div>
         <div className="auth-toggle">
           <div className="toggle-divider" />
-          {mode === "login" ? (
+          {isRegister ? (
             <>
-              <span>Don't have an account?</span>
-              <button type="button" className="toggle-btn" onClick={() => setMode("register")}>Register</button>
+              <span>Already have an account?</span>
+              <button type="button" className="toggle-btn" onClick={() => setIsRegister(false)}>Sign In</button>
             </>
           ) : (
             <>
-              <span>Already have an account?</span>
-              <button type="button" className="toggle-btn" onClick={() => setMode("login")}>Sign In</button>
+              <span>Don't have an account?</span>
+              <button type="button" className="toggle-btn" onClick={() => setIsRegister(true)}>Register</button>
             </>
           )}
         </div>
