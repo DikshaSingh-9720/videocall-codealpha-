@@ -1,6 +1,7 @@
 import { User } from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import { generateToken } from "../utils/generateToken.js";
+import axios from 'axios';
 
 export const register = async (req, res) => {
   const { name, username, password } = req.body;
@@ -32,4 +33,28 @@ export const login = async (req, res) => {
   }
   const token = generateToken(user);
   res.status(200).json({ message: "Login successful", token });
+};
+
+export const socialLogin = async (req, res) => {
+  const { provider, token } = req.body;
+  try {
+    if (provider === 'google') {
+      // Verify Google token
+      const googleRes = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${token}`);
+      const { email, name, sub } = googleRes.data;
+      if (!email) return res.status(400).json({ message: 'Invalid Google token' });
+      // Find or create user
+      let user = await User.findOne({ username: email });
+      if (!user) {
+        user = new User({ name, username: email, password: sub }); // sub is unique Google user ID
+        await user.save();
+      }
+      const jwtToken = generateToken(user);
+      return res.status(200).json({ message: 'Login successful', token: jwtToken });
+    }
+    // TODO: Add other providers if needed
+    return res.status(400).json({ message: 'Unsupported provider' });
+  } catch (err) {
+    return res.status(500).json({ message: 'Social login failed', error: err.message });
+  }
 };

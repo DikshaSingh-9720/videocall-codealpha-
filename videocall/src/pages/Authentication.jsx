@@ -2,7 +2,7 @@ import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { Authcontext } from "../context/Authcontext";
 import "../styles/Authentication.css";
-// import { GoogleLogin } from '@react-oauth/google';
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function Authentication({ setShowForm }) {
   const [mode, setMode] = useState("login");
@@ -91,6 +91,34 @@ export default function Authentication({ setShowForm }) {
               {isLoading ? (mode === "login" ? "Signing in..." : "Registering...") : (mode === "login" ? "Sign In" : "Register")}
             </button>
           </form>
+          <div className="social-login-container">
+            <div className="social-buttons">
+              <GoogleLogin
+                onSuccess={async credentialResponse => {
+                  try {
+                    const res = await fetch(`${process.env.VITE_API_URL || import.meta.env.VITE_API_URL || "https://videomeet-backend-7c7e.onrender.com"}/api/v1/users/social-login`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ provider: "google", token: credentialResponse.credential }),
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.token) {
+                      localStorage.setItem("token", data.token);
+                      window.location.href = "/dashboard";
+                    } else {
+                      setError(data.message || "Google Sign In Failed");
+                    }
+                  } catch (err) {
+                    setError("Google Sign In Failed");
+                  }
+                }}
+                onError={() => {
+                  setError('Google Sign In Failed');
+                }}
+                width="340px"
+              />
+            </div>
+          </div>
           <div className="auth-toggle">
             <div className="toggle-divider" />
             {mode === "login" ? (
