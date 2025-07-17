@@ -70,8 +70,8 @@ export default function Authentication({setShowForm}) {
               name="username"
               value={form.username}
               onChange={handleChange}
-              placeholder="Username"
-              autoComplete="username"
+              placeholder="Email Id"
+              autoComplete="Email Id"
               required
             />
           </div>
