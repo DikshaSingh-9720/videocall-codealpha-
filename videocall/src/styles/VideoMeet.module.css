@@ -737,76 +737,70 @@
 }
 
 @media (max-width: 600px) {
-  .videoGrid {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 0.7rem;
-  }
-  .conferenceView {
-    min-width: 120px;
-    max-width: 100vw;
-    padding: 0.2rem 0.2rem 1.2rem 0.2rem;
-    flex: 1 1 100px;
-  }
   .chatRoom {
-    width: 99vw;
-    right: 0.5vw;
-    bottom: 0.5vw;
-    border-radius: 1.1rem;
-    min-height: 220px;
-    max-height: 98vh;
+    position: fixed !important;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: 0;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    z-index: 9999;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
   }
   .chatContainer {
-    min-height: 180px;
-    max-height: 320px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0;
   }
   .chatHeader {
-    padding: 0.7rem 0.8rem;
-    border-radius: 1.1rem 1.1rem 0 0;
+    font-size: 1.2rem;
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
   }
   .chatMessages {
-    height: 120px;
-    padding: 0.7rem 0.5rem 0.3rem 0.5rem;
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem 0.5rem;
+    font-size: 1rem;
   }
-  .messageBubble {
-    max-width: 98vw;
-    padding: 0.5rem 0.7rem;
-    font-size: 0.95rem;
-  }
-  .chatImagePreview {
-    width: 80px;
-    height: 60px;
+  .chatInput {
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    padding: 0.5rem;
+    display: flex;
+    gap: 0.5rem;
+    border-top: 1px solid #eee;
   }
   .chatTextarea {
-    font-size: 0.95rem;
-    padding: 0.5rem 0.7rem;
+    flex: 1;
+    font-size: 1rem;
+    padding: 0.7rem;
+    border-radius: 8px;
   }
-  .chatInput {
-    padding: 0.5rem 0.5rem;
-    border-radius: 0 0 1.1rem 1.1rem;
+  .sendButton {
+    font-size: 1.1rem;
+    padding: 0.7rem 1.2rem;
+    border-radius: 8px;
   }
-  .inputWrapper {
-    padding: 0.05rem 0.2rem;
+  .attachButton {
+    font-size: 1.2rem;
+    padding: 0.7rem 1rem;
+    border-radius: 8px;
   }
-  .chatInput {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-  }
-  .inputWrapper {
-    flex-direction: column;
-    gap: 2px;
-  }
-  .selectedFileInline {
-    max-width: 100%;
-    font-size: 0.95rem;
-  }
-  .filePreviewImg {
-    width: 28px;
-    height: 28px;
-  }
-  .fileName {
-    max-width: 80px;
+  .messageBubble {
+    font-size: 1rem;
+    padding: 0.7rem 1rem;
+    border-radius: 12px;
+    margin-bottom: 0.7rem;
   }
 }
 
