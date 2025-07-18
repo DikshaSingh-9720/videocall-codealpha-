@@ -58,3 +58,24 @@ export const socialLogin = async (req, res) => {
     return res.status(500).json({ message: 'Social login failed', error: err.message });
   }
 };
+
+// Add this function for /add_to_activity
+export const addToActivity = async (req, res) => {
+  try {
+    const { userId, activity } = req.body;
+    if (!userId || !activity) {
+      return res.status(400).json({ message: 'userId and activity are required' });
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    // Assume user has an 'activityHistory' array field
+    user.activityHistory = user.activityHistory || [];
+    user.activityHistory.push({ activity, date: new Date() });
+    await user.save();
+    return res.status(200).json({ message: 'Activity added to user history' });
+  } catch (err) {
+    return res.status(500).json({ message: 'Failed to add activity', error: err.message });
+  }
+};

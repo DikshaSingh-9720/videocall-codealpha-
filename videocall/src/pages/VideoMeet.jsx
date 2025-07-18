@@ -247,17 +247,20 @@ export default function VideoMeetComponent() {
             }
           };
         }
-        connections[fromId]
-          .setRemoteDescription(new RTCSessionDescription(signal.sdp))
-          .then(() => {
-            if (signal.sdp.type === "offer") {
-              connections[fromId].createAnswer().then((description) => {
-                connections[fromId].setLocalDescription(description).then(() => {
-                  socketRef.current.emit("signal", fromId, JSON.stringify({ sdp: description }));
+        // Only set remote description if not already stable
+        if (connections[fromId].signalingState !== "stable") {
+          connections[fromId]
+            .setRemoteDescription(new RTCSessionDescription(signal.sdp))
+            .then(() => {
+              if (signal.sdp.type === "offer") {
+                connections[fromId].createAnswer().then((description) => {
+                  connections[fromId].setLocalDescription(description).then(() => {
+                    socketRef.current.emit("signal", fromId, JSON.stringify({ sdp: description }));
+                  });
                 });
-              });
-            }
-          });
+              }
+            });
+        }
       }
       if (signal.ice) {
         if (connections[fromId]) {

@@ -21,7 +21,10 @@ const io = connectToSocket(server);
 app.set("port", (process.env.PORT || 5000))
 app.use(
   cors({
-    origin: "https://videocall-codealpha.vercel.app",
+    origin:  [
+      'https://videocall-codealpha.vercel.app',
+      'http://localhost:5173'
+    ],
     credentials: true,
   })
 );
